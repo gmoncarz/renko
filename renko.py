@@ -10,16 +10,16 @@ class RenkoFixBrickSize(Renko):
     def __init__(self, brick_size, name=None):
         Renko.__init__(self, name)
         self.brick_size = brick_size
-        self._df = pd.DataFrame(
+        self.renko = pd.DataFrame(
             columns=['price_last', 'price_min', 'price_max',
                      'dt_start', 'dt_end', 'trend',
                      'volume'],
             dtype='int64',
         )
-        self._df[['trend']] = self._df[['trend']].astype(int)
-        self._df[['price_last', 'price_min', 'price_max', 'volume']] = self._df[
+        self.renko[['trend']] = self.renko[['trend']].astype(int)
+        self.renko[['price_last', 'price_min', 'price_max', 'volume']] = self.renko[
             ['price_last', 'price_min', 'price_max', 'volume']].astype(float)
-        self._df[['dt_start', 'dt_end']] = self._df[
+        self.renko[['dt_start', 'dt_end']] = self.renko[
             ['dt_start', 'dt_end']].astype('datetime64')
 
         # import ipdb; ipdb.set_trace()
@@ -48,7 +48,7 @@ class RenkoFixBrickSize(Renko):
         if volume is not None:
             new_brick['volume'] = volume
 
-        self._df = self._df.append(new_brick, ignore_index=True)
+        self.renko = self.renko.append(new_brick, ignore_index=True)
 
     def new_quotes(self, prices, dates=None, volumes=None):
         if dates is None:
@@ -56,23 +56,23 @@ class RenkoFixBrickSize(Renko):
         if volumes is None:
             volumes = [None] * len(prices)
 
-        if len(self._df) == 0:
+        if len(self.renko) == 0:
             self._new_brick(prices[0], dates[0], volumes[0])
-            self._df.loc[self._df.index[-1], 'trend'] = 0
+            self.renko.loc[self.renko.index[-1], 'trend'] = 0
             return self.new_quotes(prices[1:], dates[1:], volumes[1:])
 
         for (price, date, volume) in zip(prices, dates, volumes):
-            last_brick = self._df.iloc[-1]
+            last_brick = self.renko.iloc[-1]
 
             if price >= last_brick.price_max:
                 self._new_brick(price, date, volume)
-                self._df.loc[self._df.index[-1], 'trend'] = 1
+                self.renko.loc[self.renko.index[-1], 'trend'] = 1
                 pass
             elif price <= last_brick.price_min:
                 self._new_brick(price, date, volume)
-                self._df.loc[self._df.index[-1], 'trend'] = -1
+                self.renko.loc[self.renko.index[-1], 'trend'] = -1
                 pass
             else:
                 # The quote is in the same renko brick
-                self._df.loc[self._df.index[-1], 'price_last'] = price
+                self.renko.loc[self.renko.index[-1], 'price_last'] = price
         pass
