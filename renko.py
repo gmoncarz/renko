@@ -45,6 +45,7 @@ class RenkoFixBrickSize(Renko):
         # Add optional info
         if date is not None:
             new_brick['dt_start'] = date
+            new_brick['dt_end'] = date
         if volume is not None:
             new_brick['volume'] = volume
 
@@ -75,4 +76,9 @@ class RenkoFixBrickSize(Renko):
             else:
                 # The quote is in the same renko brick
                 self.renko.loc[self.renko.index[-1], 'price_last'] = price
+                if date is not None:
+                    self.renko.loc[self.renko.index[-1], 'dt_end'] = date
+                if volume is not None:
+                    self.renko.loc[self.renko.index[-1], 'volume'] += volume
+
         pass
