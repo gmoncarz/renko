@@ -20,7 +20,7 @@ class RenkoFixBrickSize(Renko):
         self.renko[['price_last', 'price_min', 'price_max', 'volume']] = self.renko[
             ['price_last', 'price_min', 'price_max', 'volume']].astype(float)
         self.renko[['dt_start', 'dt_end']] = self.renko[
-            ['dt_start', 'dt_end']].astype('datetime64')
+            ['dt_start', 'dt_end']].astype('datetime64').tz_localize('UTC')
 
         # import ipdb; ipdb.set_trace()
 
