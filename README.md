@@ -1,7 +1,5 @@
 # Renko
 
----
-
 Renko library that transforms stock market prices to Renko bricks. This library has two
 current implementations. One is a user friendly class, which is easy to use, and another
 which is much more efficient in CPU, ideal for reinfocement learning, but not as
@@ -76,4 +74,5 @@ Out[6]:
 In [7]: renko.graph()
 ```
 
+<img src="docs/\_static/img/renko_readme_chart.png" align="right" width="40%"/>
 
