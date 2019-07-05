@@ -9,7 +9,7 @@ readme_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'README.m
 
 setup(
     name='renko',
-    version='0.2.0',
+    version='0.3.0',
     description='Renko for Python',
     long_description_content_type="text/markdown",
     long_description=io.open(readme_file, 'rt', encoding='utf-8').read(),
@@ -28,7 +28,7 @@ setup(
     author_email="gabo@moncarz.com.ar",
     zip_safe=False,
     packages=['tests'],
-    py_modules=['renko'],
+    py_modules=['renko', 'renko_fast'],
     platforms=["POSIX"],
     test_suite="tests",
 )
