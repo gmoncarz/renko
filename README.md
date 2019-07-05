@@ -74,5 +74,4 @@ Out[6]:
 In [7]: renko.graph()
 ```
 
-<img src="docs/\_static/img/renko_readme_chart.png" align="right" width="40%"/>
-
+<img src="docs/\_static/img/renko_readme_chart.png" width="100%"/>
