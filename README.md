@@ -2,8 +2,7 @@
 
 Renko library that transforms stock market prices to Renko bricks. This library has two
 current implementations. One is a user friendly class, which is easy to use, and another
-which is much more efficient in CPU, ideal for reinfocement learning, but not as
-friendly.
+which is much more efficient in CPU, ideal for reinfocement learning.
 
 ```python
 In [1]: from renko_fast import RenkoFixBrickSize_Fast
