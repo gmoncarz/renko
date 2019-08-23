@@ -310,11 +310,14 @@ class RenkoFixBrickSize_Fast(Renko):
 
         return ret
 
-    def graph(self, col_up='green', col_down='red'):
+    def graph(self, title=None, col_up='green', col_down='red'):
         '''Draw a Renko representation'''
 
+        if title is None:
+            title = 'Renko chart - bs: %f' % self.brick_size
+
         fig, ax = plt.subplots(1, figsize=(20, 10))
-        ax.set_title('Renko chart')
+        ax.set_title(title)
         ax.set_xlabel('Renko bars')
         ax.set_ylabel('Price')
 

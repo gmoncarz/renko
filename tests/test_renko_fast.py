@@ -174,5 +174,3 @@ class RenkoFixBrickSize_FastTest(unittest.TestCase):
 
         self.assertListEqual(subject.get_renko()[:, subject.col_price_renko].tolist(), self.expected_renko_prices)
         self.assertListEqual(subject.get_renko()[:, subject.col_trend].tolist(), self.expected_trend)
-
-

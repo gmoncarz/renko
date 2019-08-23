@@ -9,7 +9,7 @@ readme_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'README.m
 
 setup(
     name='renko',
-    version='0.3.0',
+    version='0.3.1',
     description='Renko for Python',
     long_description_content_type="text/markdown",
     long_description=io.open(readme_file, 'rt', encoding='utf-8').read(),
