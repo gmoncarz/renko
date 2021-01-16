@@ -2,6 +2,7 @@ import unittest
 import pandas as pd
 
 from renko_fast import RenkoFixBrickSize_Fast
+from renko_fast import Renko
 
 
 class RenkoFixBrickSize_FastTest(unittest.TestCase):
@@ -57,6 +58,20 @@ class RenkoFixBrickSize_FastTest(unittest.TestCase):
             135.0, 125.0, 115.0, 105.0, 95.0
         ]
 
+        self.expected_symetric_prices = [
+            95.0,
+            105.0, 95.0,
+            85.0,
+            75.0,
+            65.0, 75.0,
+            65.0, 55.0,
+            45.0, 35.0, 45.0,
+            55.0,
+            65.0, 75.0, 85.0, 95.0, 105.0, 115.0, 125.0, 135.0, 145.0, 155.0,
+            145.0, 135.0, 125.0, 115.0, 105.0, 95.0,
+        ]
+
+
         self.expected_trend = [
             0.0,
             1.0,
@@ -68,6 +83,20 @@ class RenkoFixBrickSize_FastTest(unittest.TestCase):
             1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
             -1.0, -1.0, -1.0, -1.0, -1.0
         ]
+
+        self.expected_symetric_trend = [
+            0.0,
+            1.0, -1.0,
+            -1.0,
+            -1.0,
+            -1.0, 1.0,
+            -1.0, -1.0,
+            -1.0, -1.0, 1.0,
+            1.0,
+            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+            -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+        ]
+
 
         self.expected_performance = {
             'count': 26.0,
@@ -174,3 +203,11 @@ class RenkoFixBrickSize_FastTest(unittest.TestCase):
 
         self.assertListEqual(subject.get_renko()[:, subject.col_price_renko].tolist(), self.expected_renko_prices)
         self.assertListEqual(subject.get_renko()[:, subject.col_trend].tolist(), self.expected_trend)
+
+    def test_renko_symetric_with_only_quotes(self):
+        # subject = RenkoFixBrickSize_Fast(10, 'test', renko_type=Renko.TypeGrid)
+        subject = RenkoFixBrickSize_Fast(10, 'test', renko_type=Renko.TypeRenkoSymetric)
+        subject.new_quotes(self.data.price.tolist(),)
+
+        self.assertListEqual(subject.get_renko()[:, subject.col_price_renko].tolist(), self.expected_symetric_prices)
+        self.assertListEqual(subject.get_renko()[:, subject.col_trend].tolist(), self.expected_symetric_trend)

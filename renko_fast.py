@@ -21,8 +21,24 @@ This library is still on development.
 
 
 class Renko():
-    def __init__(self, name=None):
+    # TypeRenko: Vanilla's Renko
+    TypeRenko = 'renko'
+
+    # TypeRenkoSymetric: Custom renko version. It is quite similar to
+    # traditional renko, but it changes the threshold to change the renko
+    # trend. For example, if the brick size is 10 and the first price is 95,
+    # the initial renko thresholds are 85 and 105. If a new price reached 105,
+    # there is a new brick, at 95, and on traditional renko the new brick
+    # thresholds are 85 and 115. It means, there are 10 points to increase to a
+    # new renko, but 20 to deacrease. On TypeRenkoSymetric, it is kept 10
+    # points on both size. It means, with a new price of 105, there is a new
+    # brick at 105, but the new thresholds are 95 and 115 (10 points on both
+    # sides).
+    TypeRenkoSymetric = 'renko_symetric'
+
+    def __init__(self, name=None, renko_type=TypeRenko):
         self.name = name
+        self._type = renko_type
 
 
 class RenkoFixBrickSize_Fast(Renko):
@@ -58,7 +74,8 @@ class RenkoFixBrickSize_Fast(Renko):
     AS_NUMPY = 'numpy'
     AS_DATAFRAME = 'dataframe'
 
-    def __init__(self, brick_size, name=None, initial_size=10000, increment_pct=.5):
+    def __init__(self, brick_size, name=None, initial_size=10000, increment_pct=.5,
+                 renko_type=Renko.TypeRenko):
         '''Renko Constructor
 
         :param brick_size: fix size of the Renko brick
@@ -74,7 +91,7 @@ class RenkoFixBrickSize_Fast(Renko):
             to be resized.
         :type increment_pct: float
         '''
-        Renko.__init__(self, name)
+        Renko.__init__(self, name, renko_type=renko_type)
 
         self.brick_size = float(brick_size)
         self.initial_size = initial_size
@@ -121,7 +138,13 @@ class RenkoFixBrickSize_Fast(Renko):
             if price >= last_brick[self.col_price_max]:
                 cons_down = 0
                 if last_brick[self.col_trend] < 0:
-                    multiplier = 2
+                    if self._type == Renko.TypeRenko:
+                        multiplier = 2
+                    elif self._type == Renko.TypeRenkoSymetric:
+                        multiplier = 1
+                    else:
+                        raise Exception('Internal error. Unknown renko type')
+
                     cons_up = 1
                 else:
                     multiplier = 1
@@ -129,21 +152,33 @@ class RenkoFixBrickSize_Fast(Renko):
 
                 new_price_renko = last_brick[self.col_price_renko] + multiplier * self.brick_size
                 brick_upper_limit = new_price_renko + self.brick_size
-                brick_lower_limit = new_price_renko - 2 * self.brick_size
+                if self._type == self.TypeRenko:
+                    brick_lower_limit = new_price_renko - 2 * self.brick_size
+                elif self._type == self.TypeRenkoSymetric:
+                    brick_lower_limit = new_price_renko - 1 * self.brick_size
+                else:
+                    raise Exception('Internal error. Unknown renko type')
                 new_trend = 1
 
             elif price <= last_brick[self.col_price_min]:
-
                 cons_up = 0
                 if last_brick[self.col_trend] > 0:
-                    multiplier = 2
+                    if self._type == Renko.TypeRenko:
+                        multiplier = 2
+                    elif self._type == Renko.TypeRenkoSymetric:
+                        multiplier = 1
                     cons_down = 1
                 else:
                     multiplier = 1
                     cons_down = last_brick[self.col_cons_down] + 1
 
                 new_price_renko = last_brick[self.col_price_renko] - multiplier * self.brick_size
-                brick_upper_limit = new_price_renko + 2 * self.brick_size
+                if self._type == self.TypeRenko:
+                    brick_upper_limit = new_price_renko + 2 * self.brick_size
+                elif self._type == self.TypeRenkoSymetric:
+                    brick_upper_limit = new_price_renko + 1 * self.brick_size
+                else:
+                    raise Exception('Internal error. Unknown renko type')
                 brick_lower_limit = new_price_renko - self.brick_size
                 new_trend = -1
             else:
