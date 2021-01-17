@@ -1,5 +1,6 @@
 import datetime
 import calendar
+from enum import Enum
 
 import pandas as pd
 import numpy as np
@@ -20,6 +21,12 @@ This library is still on development.
 '''
 
 
+class GridPrice(Enum):
+    AVG = 'avg'
+    MIN = 'min'
+    MAX = 'max'
+
+
 class Renko():
     # TypeRenko: Vanilla's Renko
     TypeRenko = 'renko'
@@ -35,6 +42,9 @@ class Renko():
     # brick at 105, but the new thresholds are 95 and 115 (10 points on both
     # sides).
     TypeRenkoSymetric = 'renko_symetric'
+
+    # Using fix grid schema.
+    TypeGrid = 'grid'
 
     def __init__(self, name=None, renko_type=TypeRenko):
         self.name = name
@@ -75,10 +85,10 @@ class RenkoFixBrickSize_Fast(Renko):
     AS_DATAFRAME = 'dataframe'
 
     def __init__(self, brick_size, name=None, initial_size=10000, increment_pct=.5,
-                 renko_type=Renko.TypeRenko):
+                 renko_type=Renko.TypeRenko, **kwargs):
         '''Renko Constructor
 
-        :param brick_size: fix size of the Renko brick
+        :aparam brick_size: fix size of the Renko brick
         :type brick_size: int or float
         :param name: Renko name
         :type name: str
@@ -100,13 +110,39 @@ class RenkoFixBrickSize_Fast(Renko):
         self._renko = np.zeros([self.initial_size, 11])
         self._index = -1
 
+        # Set self._grid_price
+        if renko_type == Renko.TypeGrid:
+            self._grid_price = GridPrice.AVG        # Default price
+            if 'grid_price' in kwargs:
+                self._grid_price = kwargs['grid_price']
+        else:
+            self._grid_price = None
+
     def _initial_brick(self, price, date, volume):
         '''Stores the first renko brick'''
-        (brick_lower_limit, brick_upper_limit) = (price - self.brick_size, price + self.brick_size)
+        if self._type in (Renko.TypeRenko, Renko.TypeRenkoSymetric):
+            (brick_lower_limit, brick_upper_limit) = (price - self.brick_size, price + self.brick_size)
+            renko_price = price
+        elif self._type == Renko.TypeGrid:
+            brick_lower_limit = int(price / self.brick_size) * self.brick_size
+            brick_upper_limit = brick_lower_limit + self.brick_size
+
+            if self._grid_price == GridPrice.AVG:
+                renko_price = (brick_lower_limit + brick_upper_limit) / 2
+            elif self._grid_price == GridPrice.MIN:
+                renko_price = brick_lower_limit
+            elif self._grid_price == GridPrice.MAX:
+                renko_price = brick_upper_limit
+            else:
+                raise Exception('GridPrice %s is not supported' % self._grid_price)
+
+            brick_lower_limit += .0000
+        else:
+            raise Exception('Internal error. Unknown renko type')
 
         new_brick = [
             price,                  # price_last
-            price,                  # price_renko
+            renko_price,            # price_renko
             brick_lower_limit,      # price_min
             brick_upper_limit,      # price_max
             np.nan,                 # dt_start
@@ -135,51 +171,112 @@ class RenkoFixBrickSize_Fast(Renko):
         while True:
             last_brick = self._renko[self._index]
 
-            if price >= last_brick[self.col_price_max]:
+            if (price >= last_brick[self.col_price_max] and (self._type != Renko.TypeGrid or price > last_brick[self.col_price_max])):
                 cons_down = 0
                 if last_brick[self.col_trend] < 0:
                     if self._type == Renko.TypeRenko:
                         multiplier = 2
                     elif self._type == Renko.TypeRenkoSymetric:
                         multiplier = 1
+                    elif self._type == Renko.TypeGrid:
+                        multiplier = 0
                     else:
                         raise Exception('Internal error. Unknown renko type')
 
                     cons_up = 1
                 else:
-                    multiplier = 1
+                    if self._type != Renko.TypeGrid:
+                        multiplier = 1
+                    else:
+                        multiplier = 0
                     cons_up = last_brick[self.col_cons_up] + 1
 
-                new_price_renko = last_brick[self.col_price_renko] + multiplier * self.brick_size
-                brick_upper_limit = new_price_renko + self.brick_size
-                if self._type == self.TypeRenko:
-                    brick_lower_limit = new_price_renko - 2 * self.brick_size
-                elif self._type == self.TypeRenkoSymetric:
-                    brick_lower_limit = new_price_renko - 1 * self.brick_size
+                if self._type in (Renko.TypeRenko, Renko.TypeRenkoSymetric):
+                    new_price_renko = last_brick[self.col_price_renko] + multiplier * self.brick_size
+                    brick_upper_limit = new_price_renko + self.brick_size
+                    if self._type == self.TypeRenko:
+                        brick_lower_limit = new_price_renko - 2 * self.brick_size
+                    elif self._type == self.TypeRenkoSymetric:
+                        brick_lower_limit = new_price_renko - 1 * self.brick_size
+                    else:
+                        raise Exception('Internal error. Unknown renko type')
+                elif self._type == Renko.TypeGrid:
+                    # if price % self.brick_size != 0:
+                    #     brick_lower_limit = int(price / self.brick_size) * self.brick_size
+                    # else:
+                    #     brick_lower_limit = int(price / self.brick_size) * self.brick_size
+
+                    # brick_upper_limit = brick_lower_limit + self.brick_size
+                    brick_lower_limit = last_brick[self.col_price_min] + self.brick_size
+                    brick_upper_limit = last_brick[self.col_price_max] + self.brick_size
+
+                    if self._grid_price == GridPrice.AVG:
+                        new_price_renko = (brick_lower_limit + brick_upper_limit) / 2
+                    elif self._grid_price == GridPrice.MIN:
+                        new_price_renko = brick_lower_limit
+                    elif self._grid_price == GridPrice.MAX:
+                        new_price_renko = brick_upper_limit
+                    else:
+                        raise Exception('GridPrice %s is not supported' % self._grid_price)
+
+                    # brick_lower_limit += .0000
                 else:
                     raise Exception('Internal error. Unknown renko type')
+
                 new_trend = 1
 
-            elif price <= last_brick[self.col_price_min]:
+            elif (price <= last_brick[self.col_price_min] and (self._type != Renko.TypeGrid or price < last_brick[self.col_price_min])):
                 cons_up = 0
                 if last_brick[self.col_trend] > 0:
                     if self._type == Renko.TypeRenko:
                         multiplier = 2
                     elif self._type == Renko.TypeRenkoSymetric:
                         multiplier = 1
+                    elif self._type == Renko.TypeGrid:
+                        multiplier = 0
+                    else:
+                        raise Exception('Internal error. Unknown renko type')
+
                     cons_down = 1
                 else:
-                    multiplier = 1
+                    if self._type != Renko.TypeGrid:
+                        multiplier = 1
+                    else:
+                        multiplier = 0
                     cons_down = last_brick[self.col_cons_down] + 1
 
-                new_price_renko = last_brick[self.col_price_renko] - multiplier * self.brick_size
-                if self._type == self.TypeRenko:
-                    brick_upper_limit = new_price_renko + 2 * self.brick_size
-                elif self._type == self.TypeRenkoSymetric:
-                    brick_upper_limit = new_price_renko + 1 * self.brick_size
+                if self._type in (Renko.TypeRenko, Renko.TypeRenkoSymetric):
+                    new_price_renko = last_brick[self.col_price_renko] - multiplier * self.brick_size
+                    brick_lower_limit = new_price_renko - self.brick_size
+                    if self._type == self.TypeRenko:
+                        brick_upper_limit = new_price_renko + 2 * self.brick_size
+                    elif self._type == self.TypeRenkoSymetric:
+                        brick_upper_limit = new_price_renko + 1 * self.brick_size
+                    else:
+                        raise Exception('Internal error. Unknown renko type')
+                elif self._type == Renko.TypeGrid:
+                    # if price % self.brick_size != 0:
+                    #     brick_lower_limit = int(price / self.brick_size) * self.brick_size
+                    # else:
+                    #     brick_lower_limit = (int(price / self.brick_size) - 1) * self.brick_size
+
+                    # brick_upper_limit = brick_lower_limit + self.brick_size
+                    brick_lower_limit = last_brick[self.col_price_min] - self.brick_size
+                    brick_upper_limit = last_brick[self.col_price_max] - self.brick_size
+
+                    if self._grid_price == GridPrice.AVG:
+                        new_price_renko = (brick_lower_limit + brick_upper_limit) / 2
+                    elif self._grid_price == GridPrice.MIN:
+                        new_price_renko = brick_lower_limit
+                    elif self._grid_price == GridPrice.MAX:
+                        new_price_renko = brick_upper_limit
+                    else:
+                        raise Exception('GridPrice %s is not supported' % self._grid_price)
+
+                    # brick_lower_limit += .0000
                 else:
                     raise Exception('Internal error. Unknown renko type')
-                brick_lower_limit = new_price_renko - self.brick_size
+
                 new_trend = -1
             else:
                 last_brick[self.col_count] = 1

@@ -3,6 +3,7 @@ import pandas as pd
 
 from renko_fast import RenkoFixBrickSize_Fast
 from renko_fast import Renko
+from renko_fast import GridPrice
 
 
 class RenkoFixBrickSize_FastTest(unittest.TestCase):
@@ -71,7 +72,6 @@ class RenkoFixBrickSize_FastTest(unittest.TestCase):
             145.0, 135.0, 125.0, 115.0, 105.0, 95.0,
         ]
 
-
         self.expected_trend = [
             0.0,
             1.0,
@@ -96,7 +96,6 @@ class RenkoFixBrickSize_FastTest(unittest.TestCase):
             1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
         ]
-
 
         self.expected_performance = {
             'count': 26.0,
@@ -211,3 +210,163 @@ class RenkoFixBrickSize_FastTest(unittest.TestCase):
 
         self.assertListEqual(subject.get_renko()[:, subject.col_price_renko].tolist(), self.expected_symetric_prices)
         self.assertListEqual(subject.get_renko()[:, subject.col_trend].tolist(), self.expected_symetric_trend)
+
+    def test_renko_grid_with_only_quotes(self):
+        data = pd.DataFrame({
+            'price': [
+                91, 90.1, 99, 94,
+                100, 100.1, 100.0, 109, 86,
+                85, 84, 86, 76,
+                74,
+                65, 77,
+                54,
+                33, 45, 54,
+                55, 64,
+                100,
+                100.0001,
+                94, 93, 92, 91, 90, 89,
+            ],
+        })
+
+        expected_grid_avg_prices = [
+            95.0,
+            105.0, 95.0, 85.0,
+            75,
+
+            65, 75,
+            65, 55,
+            45, 35, 45, 55,
+            65,
+            75, 85,95,
+
+            105,
+            95, 85,
+        ]
+
+        expected_grid_min_prices = [
+            90.0,
+            100.0, 90.0, 80.0,
+            70,
+
+            60, 70,
+            60, 50,
+            40, 30, 40, 50,
+            60,
+            70, 80, 90,
+
+            100,
+            90, 80,
+        ]
+
+        expected_grid_max_prices = [
+            100.0,
+            110.0, 100.0, 90.0,
+            80,
+
+            70, 80,
+            70, 60,
+            50, 40, 50, 60,
+            70,
+            80, 90, 100,
+
+            110,
+            100, 90,
+        ]
+
+        expected_grid_trend = [
+            0,
+            1, -1, -1,
+            -1,
+
+            -1, 1,
+            -1, -1,
+            -1, -1, 1, 1,
+            1,
+            1, 1, 1,
+            1,
+            -1, -1,
+        ]
+
+        subject_avg = RenkoFixBrickSize_Fast(10, 'test', renko_type=Renko.TypeGrid, grid_price = GridPrice.AVG)
+        subject_avg.new_quotes(data.price.tolist(),)
+
+        self.assertListEqual(subject_avg.get_renko()[:, subject_avg.col_price_renko].tolist(), expected_grid_avg_prices)
+        self.assertListEqual(subject_avg.get_renko()[:, subject_avg.col_trend].tolist(), expected_grid_trend)
+
+        subject_min = RenkoFixBrickSize_Fast(10, 'test', renko_type=Renko.TypeGrid, grid_price = GridPrice.MIN)
+        subject_min.new_quotes(data.price.tolist(),)
+
+        self.assertListEqual(subject_min.get_renko()[:, subject_min.col_price_renko].tolist(), expected_grid_min_prices)
+        self.assertListEqual(subject_min.get_renko()[:, subject_min.col_trend].tolist(), expected_grid_trend)
+
+        subject_max = RenkoFixBrickSize_Fast(10, 'test', renko_type=Renko.TypeGrid, grid_price = GridPrice.MAX)
+        subject_max.new_quotes(data.price.tolist(),)
+
+        self.assertListEqual(subject_max.get_renko()[:, subject_max.col_price_renko].tolist(), expected_grid_max_prices)
+        self.assertListEqual(subject_max.get_renko()[:, subject_max.col_trend].tolist(), expected_grid_trend)
+
+
+    def test_renko_grid_thresholds(self):
+        data = [
+            91, 90, 99, 100, 90, 100,
+            100.001,
+            100, 110, 100, 110,
+            99.9999,
+            59.99,
+            60, 50, 60, 50,
+        ]
+
+        expected_grid_avg_prices = [
+            95.0, 95, 95, 95, 95, 95,
+            105,
+            105, 105, 105, 105,
+            95,
+            55,
+            55, 55, 55, 55,
+        ]
+
+        expected_grid_min_prices = [
+            90.0, 90, 90, 90, 90, 90,
+            100,
+            100, 100, 100, 100,
+            90,
+            50,
+            50, 50, 50, 50,
+        ]
+
+        expected_grid_max_prices = [
+            100.0, 100, 100, 100, 100, 100,
+            110,
+            110, 110, 110, 110,
+            100,
+            60,
+            60, 60, 60, 60,
+        ]
+
+        expected_grid_trend = [
+            0, 0, 0, 0, 0, 0,
+            1,
+            1, 1, 1, 1,
+            -1,
+            -1,
+            -1, -1, -1, -1,
+        ]
+
+
+        subject_avg = RenkoFixBrickSize_Fast(10, 'test', renko_type=Renko.TypeGrid, grid_price = GridPrice.AVG)
+        subject_min = RenkoFixBrickSize_Fast(10, 'test', renko_type=Renko.TypeGrid, grid_price = GridPrice.MIN)
+        subject_max = RenkoFixBrickSize_Fast(10, 'test', renko_type=Renko.TypeGrid, grid_price = GridPrice.MAX)
+
+        # Evaluate step by step
+        for index, quote in enumerate(data):
+            subject_avg.new_quotes([quote])
+            subject_min.new_quotes([quote])
+            subject_max.new_quotes([quote])
+
+            self.assertEqual(subject_avg.get_renko()[:, subject_avg.col_price_renko][-1], expected_grid_avg_prices[index])
+            self.assertEqual(subject_min.get_renko()[:, subject_min.col_price_renko][-1], expected_grid_min_prices[index])
+            self.assertEqual(subject_max.get_renko()[:, subject_max.col_price_renko][-1], expected_grid_max_prices[index])
+
+            self.assertEqual(subject_avg.get_renko()[:, subject_avg.col_trend][-1], expected_grid_trend[index])
+            self.assertEqual(subject_min.get_renko()[:, subject_min.col_trend][-1], expected_grid_trend[index])
+            self.assertEqual(subject_max.get_renko()[:, subject_max.col_trend][-1], expected_grid_trend[index])
